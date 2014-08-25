@@ -47,7 +47,8 @@ fi
 # Use SPARK_MEM or 512m as the default memory, to be overridden by specific options
 DEFAULT_MEM=${SPARK_MEM:-512m}
 
-SPARK_DAEMON_JAVA_OPTS="$SPARK_DAEMON_JAVA_OPTS -Dspark.akka.logLifecycleEvents=true"
+SPARK_DAEMON_JAVA_OPTS="$SPARK_DAEMON_JAVA_OPTS -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/root/ -Dspark.akka.logLifecycleEvents=true"
+SPARK_JAVA_OPTS="$SPARK_JAVA_OPTS -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/root/"
 
 # Add java opts and memory settings for master, worker, history server, executors, and repl.
 case "$1" in
