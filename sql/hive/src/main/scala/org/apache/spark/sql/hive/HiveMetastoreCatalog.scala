@@ -21,6 +21,7 @@ import java.io.IOException
 import java.util.{List => JList}
 
 import com.google.common.cache.{LoadingCache, CacheLoader, CacheBuilder}
+import org.apache.hadoop.fs.Path
 
 import org.apache.hadoop.util.ReflectionUtils
 import org.apache.hadoop.hive.metastore.{Warehouse, TableType}
@@ -137,6 +138,23 @@ private[hive] class HiveMetastoreCatalog(hive: HiveContext) extends Catalog with
     synchronized {
       client.createTable(tbl, false)
     }
+  }
+
+  def createDataSourceTable(
+      tableName: String,
+      userSpecifiedSchema: Option[StructType],
+      provider: String,
+      options: Map[String, String],
+      isExternal: Boolean,
+      partitionToPath: Seq[Map[String, String]]) {
+    createDataSourceTable(tableName, userSpecifiedSchema, provider, options, isExternal)
+    val table = client.getTable(tableName)
+    val path = table.getPath
+    val partitions = partitionToPath.map { kv =>
+      new Partition(table, kv, path)
+    }
+
+    client.alterPartitions(tableName, partitions)
   }
 
   def hiveDefaultTableFilePath(tableName: String): String = {
