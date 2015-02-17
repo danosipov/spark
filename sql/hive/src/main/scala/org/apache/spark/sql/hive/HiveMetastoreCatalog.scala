@@ -43,6 +43,8 @@ import org.apache.spark.sql.sources.{DDLParser, LogicalRelation, ResolvedDataSou
 import org.apache.spark.sql.types._
 import org.apache.spark.util.Utils
 
+import scala.collection.SortedMap
+
 /* Implicit conversions */
 import scala.collection.JavaConversions._
 
@@ -146,14 +148,21 @@ private[hive] class HiveMetastoreCatalog(hive: HiveContext) extends Catalog with
       provider: String,
       options: Map[String, String],
       isExternal: Boolean,
-      partitionToPath: Seq[Map[String, String]]) {
+      partitionToPath: Seq[SortedMap[String, String]]) {
     createDataSourceTable(tableName, userSpecifiedSchema, provider, options, isExternal)
     val table = client.getTable(tableName)
-    val path = table.getPath
-    val partitions = partitionToPath.map { kv =>
-      new Partition(table, kv, path)
+    val partitionSchema = partitionToPath.foldLeft(Seq.empty[FieldSchema]) { (newSeq, part) =>
+      val partitions = part.map(kv => new FieldSchema(kv._1, "string", ""))
+      newSeq ++ partitions.filter(p => newSeq.contains(p))
+    }
+    table.setPartCols(partitionSchema)
+
+    val partitions = partitionToPath.map { part =>
+      val path = new Path(part.map(kv => kv._1 + "=" + kv._2).mkString("/"))
+      new Partition(table, part, path)
     }
 
+    client.alterTable(tableName, table)
     client.alterPartitions(tableName, partitions)
   }
 
